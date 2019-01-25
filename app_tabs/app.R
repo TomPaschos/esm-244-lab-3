@@ -22,7 +22,8 @@ ui <- fluidPage(
                       "Pick a color:",
                       choices = c("red",
                                   "blue",
-                                  "purple"))
+                                  "purple",
+                                  "yellow"))
       ),
       
       # Show a plot of the generated distribution

@@ -1,0 +1,128 @@
+---
+title: "ESM 244 Lab 3"
+author: "Tom Paschos"
+date: "1/23/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### 0. Attach Packages
+
+```{r Load_Packages_Data}
+
+library(tidyverse)
+library(boot) # for bootstrapping
+library(naniar)
+library(simputation)
+
+```
+
+### A. Bootstrapping penguin flipper lengths
+
+1. Get penguin data
+
+```{r data_exploration}
+
+penguins <- read_csv("penguins.csv")
+
+male_p <- penguins %>% 
+  filter(sex == "MALE")
+
+# Look at it using GGplot
+
+ggplot(male_p, aes(x = flipper_length)) +
+  geom_histogram(bins = 10) +
+  theme_light() # Sample size 22, not really normally distributed
+
+# pull function in dplyr
+
+flippers <- male_p %>% 
+  pull(flipper_length)
+
+```
+
+### Create a function and do some bootstrapping
+
+
+```{r bootstrapping_data}
+
+# We're going to bootstrap this vector of flippers:  [1] 181 190 195 191 198 197 194 180 185 180 183 180 178 184 196 190 184 195 196 190 182 191
+# x will be the bootsrap sample
+
+# Function in words: 
+
+mean_fun <- function(x,i) {mean(x[i])}
+
+set.seed(10)
+boot_10 <- boot(flippers, mean_fun, R = 10) # R is number of bootstrap samples you want
+# Call it in the console, you'll have different numbers than your classmates.  So, if you want to reproduce this you need to SEED it (above boot_10).  The same seed number is the key.  10 in the set.seed is different than the # of bootstraps.
+
+set.seed(10)
+boot(flippers, mean_fun, R = 10)
+
+boot_100 <- boot(flippers, mean_fun, R = 100)
+
+ggplot() +
+  aes(boot_100$t) +
+  geom_histogram() # Use this method (workaround to plot)
+
+# See what happens to distribution when you run 25000 bootstrap samples
+
+boot_25000 <- boot(flippers, mean_fun, R = 25000)
+
+ggplot() +
+  aes(boot_25000$t) +
+  geom_histogram()
+
+# Now we can make some strong assumptions (confidence intervals, erros) that's based on the data itself.
+
+# Calc the confidence interval using the boot.ci() in the boot package
+
+boot.ci(boot_25000, conf = 0.95)
+
+```
+
+### Evaluating missingness with naniar
+
+```{r missing_data}
+
+vis_miss(airquality) # gives a visual summary of missingness
+
+gg_miss_var(airquality, facet = Month)
+
+# Some functions to work with ggplot
+# geom_vis_point()
+
+ggplot(airquality, aes(x = Ozone, y = Solar.R)) +
+  geom_miss_point()
+
+ggplot(airquality, aes(x = Solar.R, y = Temp)) +
+  geom_miss_point() +
+  scale_color_manual(values = c("orange","purple")) +
+  facet_wrap(~Month)
+
+# Creating a shadow matrix
+
+na_shadow <- bind_shadow(airquality) # View, it creates a binary indication of NA or Not NA (!NA).  Keeps original data and creates new data alongside of it.
+
+# Use imputation by linear regression.  Scarily easy in R, can lead to model overfitting.  If you only have a few missing values, just use the data as is.  
+
+airquality %>% 
+  impute_lm(Ozone ~ Temp + Wind) %>% 
+  ggplot(aes(x = Temp, y = Ozone)) +
+  geom_point()
+
+na_shadow %>% 
+  impute_lm(Ozone ~ Temp + Wind) %>% 
+  ggplot(aes(x = Temp, y = Ozone, color = Ozone_NA)) +
+  geom_point()
+
+# All the teal points are observations that have been imputed!
+
+```
+
+
+
